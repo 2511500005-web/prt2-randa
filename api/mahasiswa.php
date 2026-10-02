@@ -3,71 +3,131 @@
 require_once "../config.php";
 require_once "../helpers/response.php";
 
-$base = "SELECT m.id, m.nama, m.nim, j.nama_jurusan AS jurusan
-         FROM mahasiswa m
-         LEFT JOIN jurusan j ON m.jurusan_id = j.id";
-
-// 1. GET by ID: ?id=1
+//mahasiswa.php?nim=7
+// get by id
 if (isset($_GET['id'])) {
-    $id = (int) $_GET['id'];
+    $id = $_GET['id'];
+    
+    $q = "SELECT 
+            m.id, 
+            m.nama, 
+            m.nim, 
+            j.nama_jurusan AS jurusan 
+            FROM mahasiswa m 
+            LEFT JOIN jurusan j ON m.jurusan_id = j.id 
+            where m.id ='$id'";
 
-    $r = mysqli_query($koneksi, "$base WHERE m.id = $id");
-    if (!$r) sendResponse(false, "query gagal: " . mysqli_error($koneksi), null, 500);
+    $r = mysqli_query($koneksi, $q);
 
-    $row = mysqli_fetch_assoc($r);
-    if (!$row) sendResponse(false, "Data tidak ditemukan", null, 404);
+    if (!$r)  {
+        sendResponse(
+            false, 
+            "query gagal: " . mysqli_error($koneksi), 
+            null, 
+            500
+            );
+        }
 
-    sendResponse(true, "berhasil", $row, 200);
-    exit;
+        $data = mysqli_fetch_assoc($r);
+
+    if (!$data) {
+            sendResponse(false, "mahasiswa tidak 
+            ditemukan", null, 404);
+        }
+        sendResponse(true, "berhasil", $data, 200);
 }
 
-// 2. Pencarian: ?search=si (nama LIKE atau nim LIKE)
+//search
+//api/mahasiswa.php?search=<lu>
 if (isset($_GET['search'])) {
-    $s = mysqli_real_escape_string($koneksi, $_GET['search']);
-
-    $q = "$base
-          WHERE m.nama LIKE '%$s%' OR m.nim LIKE '%$s%'
-          ORDER BY m.id DESC";
+    $search = $_GET['search'];
+    
+    $q = "SELECT 
+            m.id, 
+            m.nama, 
+            m.nim, 
+            j.nama_jurusan AS jurusan 
+            FROM mahasiswa m 
+            LEFT JOIN jurusan j 
+            ON m.jurusan_id = j.id 
+            where m.nama LIKE '%$search%'
+            OR m.nim LIKE '%$search%'
+            ORDER BY m.id DESC";
 
     $r = mysqli_query($koneksi, $q);
-    if (!$r) sendResponse(false, "query gagal: " . mysqli_error($koneksi), null, 500);
 
-    $data = [];
+    if (!$r)  {
+        sendResponse(
+            false, 
+            "query gagal: " . mysqli_error($koneksi), 
+            null, 
+            500
+            );
+        }
+
+        $data = [];
+
     while ($row = mysqli_fetch_assoc($r)) {
-        $data[] = $row;
-    }
-
-    sendResponse(true, "berhasil", $data, 200);
-    exit;
+            $data[] = $row;
+    }   
+        sendResponse(true, 
+        "berhasil", 
+        $data, 
+        200);
 }
 
-// 3. Pagination: ?page=1&limit=5 (urut id terbesar / DESC)
+//Pagination
+//api/mahasiswa.php?limit=2
+//api/mahasiswa.php?page=200
+//api/mahasiswa.php?page=1&limit=200
 if (isset($_GET['page']) || isset($_GET['limit'])) {
-    $page  = isset($_GET['page'])  ? max(1, (int) $_GET['page'])  : 1;
-    $limit = isset($_GET['limit']) ? max(1, (int) $_GET['limit']) : 10;
-    $offset = ($page - 1) * $limit;
 
-    $q = "$base ORDER BY m.id DESC LIMIT $limit OFFSET $offset";
+    $page = isset($_GET['page'])
+        ? (int) $_GET['page']
+        : 1;
 
-    $r = mysqli_query($koneksi, $q);
-    if (!$r) sendResponse(false, "query gagal: " . mysqli_error($koneksi), null, 500);
+    $limit = isset($_GET['limit'])
+        ? (int) $_GET['limit']
+        : 10;
 
-    $data = [];
-    while ($row = mysqli_fetch_assoc($r)) {
-        $data[] = $row;
+    if ($page < 1) {
+        $page = 1;
     }
 
-    sendResponse(true, "berhasil", $data, 200);
-    exit;
+     if ($limit < 1) {
+         $limit = 10;
+    }
+    $offset = ($page - 1) * $limit;
+    
+    $q = "SELECT 
+            m.id, 
+            m.nama, 
+            m.nim, 
+            j.nama_jurusan AS jurusan 
+            FROM mahasiswa m 
+            LEFT JOIN jurusan j 
+            ON m.jurusan_id = j.id 
+            ORDER BY m.id DESC
+            LIMIT $limit OFFSET $offset";
+
+    $r = mysqli_query($koneksi, $q);
+
+    if (!$r)  {
+        sendResponse(
+            false, 
+            "query gagal: " . mysqli_error($koneksi), 
+            null, 
+            500
+            );
+        }
+
+        $data = [];
+
+    while ($row = mysqli_fetch_assoc($r)) {
+            $data[] = $row;
+    }   
+        sendResponse(true, 
+        "berhasil", 
+        $data, 
+        200);
 }
-
-// 4. Default: semua mahasiswa
-$r = mysqli_query($koneksi, "$base ORDER BY m.id DESC");
-if (!$r) sendResponse(false, "query gagal: " . mysqli_error($koneksi), null, 500);
-
-$data = [];
-while ($row = mysqli_fetch_assoc($r)) {
-    $data[] = $row;
-}
-
-sendResponse(true, "berhasil", $data, 200);
